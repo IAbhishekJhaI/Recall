@@ -38,6 +38,11 @@ class JobManager:
             self._jobs[job.id] = job
             return job
 
+    def pending_count(self, user_id: str) -> int:
+        with self._lock:
+            self._expire()
+            return sum(1 for j in self._jobs.values() if j.user_id == user_id and j.status == "pending")
+
     def get(self, job_id: str, user_id: str) -> Job | None:
         """Only the user who started a job can see it."""
         with self._lock:

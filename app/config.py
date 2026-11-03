@@ -43,12 +43,18 @@ class Settings:
     anthropic_api_key: str | None = None
     extract_model: str = "claude-sonnet-5-5"
     query_model: str = "claude-haiku-5-5"
+    card_gate_model: str = "claude-haiku-5-5"
     extract_fallbacks: bool = True
     cookie_secure: bool = True
     session_days: int = 30
     admin_username: str | None = None
     admin_password: str | None = None
     max_upload_mb: int = 15
+    # Abuse limits, per user. 0 disables a limit.
+    cards_per_day: int = 100
+    queries_per_day: int = 300
+    ai_calls_per_minute: int = 10
+    max_pending_jobs: int = 3
     model_prices: dict[str, tuple[float, float]] = field(default_factory=lambda: dict(MODEL_PRICES))
 
     @property
@@ -67,12 +73,17 @@ class Settings:
             anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY") or None,
             extract_model=os.environ.get("EXTRACT_MODEL", "claude-sonnet-5-5"),
             query_model=os.environ.get("QUERY_MODEL", "claude-haiku-5-5"),
+            card_gate_model=os.environ.get("CARD_GATE_MODEL", "claude-haiku-5-5"),
             extract_fallbacks=_bool("EXTRACT_FALLBACKS", True),
             cookie_secure=_bool("COOKIE_SECURE", True),
             session_days=int(os.environ.get("SESSION_DAYS", "30")),
             admin_username=os.environ.get("ADMIN_USERNAME") or None,
             admin_password=os.environ.get("ADMIN_PASSWORD") or None,
             max_upload_mb=int(os.environ.get("MAX_UPLOAD_MB", "15")),
+            cards_per_day=int(os.environ.get("CARDS_PER_DAY", "100")),
+            queries_per_day=int(os.environ.get("QUERIES_PER_DAY", "300")),
+            ai_calls_per_minute=int(os.environ.get("AI_CALLS_PER_MINUTE", "10")),
+            max_pending_jobs=int(os.environ.get("MAX_PENDING_JOBS", "3")),
         )
 
 

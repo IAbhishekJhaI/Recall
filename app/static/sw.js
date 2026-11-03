@@ -1,6 +1,6 @@
 // Caches only the app shell so Recall opens quickly. Contact data, card photos
 // and every /api/ response are never cached on the device.
-const CACHE = "recall-shell-v1";
+const CACHE = "recall-shell-v2";
 const SHELL = ["/", "/static/app.js", "/static/style.css", "/static/icons/icon-192.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

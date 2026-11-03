@@ -259,6 +259,19 @@ class AccountStore:
             (user_id, _iso(), kind, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd),
         )
 
+    def count_ai_calls(self, user_id: str, kinds: tuple[str, ...], within_s: int) -> int:
+        """How many AI calls (or blocked attempts) of these kinds the user made recently."""
+        marks = ",".join("?" * len(kinds))
+        rows = self._run(
+            f"SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND ts >= ? AND kind IN ({marks})",
+            (user_id, _iso(_now() - within_s), *kinds),
+        )
+        return rows[0]["n"]
+
+    def record_blocked(self, user_id: str, kind: str) -> None:
+        """Count a request rejected before reaching the AI, so spamming them is rate limited too."""
+        self.record_usage(user_id, kind, "none", 0, 0, 0, 0, 0.0)
+
     def usage_summary(self, user_id: str | None = None, month: str | None = None) -> dict:
         """Totals for a month ('YYYY-MM', default current) for one user or everyone, grouped by kind."""
         month = month or datetime.now(timezone.utc).strftime("%Y-%m")

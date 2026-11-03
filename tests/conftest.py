@@ -7,11 +7,11 @@ from PIL import Image
 from app.ai import AIError, AIResult, Usage
 from app.config import Settings
 from app.main import create_app
-from app.schemas import CardExtraction, Phone, QuerySpec
+from app.schemas import CardCheck, CardExtraction, Phone, QuerySpec
 
 
 def empty_spec(**kw) -> QuerySpec:
-    base = dict(explanation="", industries=[], keywords=[], title_keywords=[], exclude_title_keywords=[],
+    base = dict(is_contact_search=True, industries=[], keywords=[], title_keywords=[], exclude_title_keywords=[],
                 names=[], companies=[], cities=[], provinces=[], countries=[], tags=[], require_fields=[],
                 return_fields=[])
     base.update(kw)
@@ -19,7 +19,7 @@ def empty_spec(**kw) -> QuerySpec:
 
 
 def extraction(**kw) -> CardExtraction:
-    base = dict(name="", name_native="", title="", title_native="", department="", company="",
+    base = dict(is_business_card=True, name="", name_native="", title="", title_native="", department="", company="",
                 company_native="", phones=[], emails=[], website="", address="", address_native="", city="",
                 province_state="", country="", postal_code="", wechat="", whatsapp="", linkedin="",
                 other_contacts=[], raw_text="")
@@ -37,9 +37,14 @@ class FakeAI:
             phones=[Phone(type="mobile", number="+86 138 0013 8000")], emails=["liwei@cantonhome.cn"],
             city="Guangzhou", province_state="Guangdong", country="China", raw_text="李伟 总经理",
         )
-        self.next_spec = empty_spec(explanation="All contacts")
+        self.next_spec = empty_spec()
+        self.is_card = True
         self.extract_error: str | None = None
         self.calls: list[tuple] = []
+
+    def check_card(self, images):
+        self.calls.append(("check", len(images)))
+        return AIResult(CardCheck(is_business_card=self.is_card), Usage("claude-haiku-5-5", 700, 10))
 
     def extract_card(self, images):
         self.calls.append(("extract", len(images)))

@@ -22,7 +22,14 @@ class Phone(BaseModel):
 # Every field is required so the structured-output schema is simple; the model
 # returns "" / [] for anything not on the card.
 # --------------------------------------------------------------------------
+class CardCheck(BaseModel):
+    """Cheap pre-check: is this upload really a business card?"""
+
+    is_business_card: bool = Field(description="True only if the image(s) show a business/visiting card")
+
+
 class CardExtraction(BaseModel):
+    is_business_card: bool = Field(description="True if the image(s) show a business card; if False every other field must be empty")
     name: str = Field(description="Person's name in Latin script as printed (e.g. 'Li Wei' or 'John Smith'); '' if only a native-script name is printed")
     name_native: str = Field(description="Person's name in native script (e.g. Chinese characters) if printed, else ''")
     title: str = Field(description="Job title in English as printed, else ''")
@@ -152,7 +159,7 @@ DEFAULT_RETURN_FIELDS: list[str] = ["name", "title", "company", "phones", "email
 
 
 class QuerySpec(BaseModel):
-    explanation: str = Field(description="One short sentence telling the user how the question was interpreted")
+    is_contact_search: bool = Field(description="True only if the message asks to find/list/filter the user's saved contacts; if False every other field must be empty")
     industries: list[str] = Field(description="Industry values to match (prefer values from the user's existing industries list)")
     keywords: list[str] = Field(description="Topic keywords/synonyms (English and native-language) matched anywhere in the contact; OR-ed with industries")
     title_keywords: list[str] = Field(description="Job-title words/synonyms; contact matches if its title contains any of them")
@@ -167,8 +174,11 @@ class QuerySpec(BaseModel):
     return_fields: list[FieldName] = Field(description="Columns to show, most relevant first; [] for the default set")
 
 
+MAX_QUESTION_CHARS = 200
+
+
 class QueryRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=500)
+    question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARS)
 
 
 class LoginRequest(BaseModel):

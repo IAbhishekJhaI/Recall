@@ -50,6 +50,7 @@ everything.
 | Step | Model (configurable) | Approx. cost |
 |---|---|---|
 | Reading a card | `claude-sonnet-5-5` | ~1.2¢ per card |
+| Checking a photo is a business card | `claude-haiku-5-5` | ~0.01¢ per photo |
 | Answering a question | `claude-haiku-5-5` | ~0.03¢ per question |
 
 At ~50 cards a month the AI bill is well under $1/month. Each user sees their own usage
@@ -57,6 +58,23 @@ under their account menu; admins see per-user AI cost on the Users page.
 If Sonnet's safety classifier ever declines a card, the request is retried on a fallback
 model automatically (`EXTRACT_FALLBACKS=true`); if reading still fails, the form stays
 available for manual entry.
+
+## Abuse protection
+
+The AI is only used for reading business cards and searching your contacts — not as a general chatbot.
+
+- **Only business cards reach the card reader.** Each upload is first checked by a cheap model on a
+  small thumbnail; anything that isn't a business card (screenshots, documents, receipts, ID cards,
+  selfies…) is rejected before the card-reading model runs. The card reader double-checks, too, and
+  its output is capped and clipped to contact-field sizes.
+- **Only contact searches reach the query model.** Questions are limited to 200 characters on one line
+  and screened locally for prompt injection and chatbot-style requests ("write a poem", "ignore your
+  instructions", links, code…) — those never reach the AI. The model must then confirm the question is a
+  contact search; anything else is refused.
+- **No AI-written text is shown.** Search results contain only your contacts plus a summary of the filter
+  built by the server from short search terms, so the model can't be used to answer other questions.
+- **Per-user limits** (0 disables one): `CARDS_PER_DAY` (100), `QUERIES_PER_DAY` (300),
+  `AI_CALLS_PER_MINUTE` (10), `MAX_PENDING_JOBS` (3). Rejected questions count towards the limits.
 
 ## Privacy model
 

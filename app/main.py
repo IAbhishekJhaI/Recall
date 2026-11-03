@@ -22,6 +22,15 @@ from .auth import (
     user_store,
 )
 from .config import Settings, estimate_cost
+from .guard import (
+    NOT_A_CARD_MESSAGE,
+    OFF_TOPIC_MESSAGE,
+    check_question,
+    clean_extraction,
+    clip_spec,
+    describe_spec,
+    normalise_question,
+)
 from .jobs import JobManager
 from .schemas import (
     ContactIn,
@@ -85,6 +94,18 @@ def create_app(settings: Settings | None = None, ai: AIService | None = None) ->
         accounts.record_usage(user.id, kind, usage.model, usage.input_tokens, usage.output_tokens,
                               usage.cache_read_tokens, usage.cache_write_tokens, cost)
 
+    # ---- abuse limits ---------------------------------------------------------
+    CARD_KINDS = ("card_check",)
+    QUERY_KINDS = ("query", "query_blocked")
+    LIMIT_MESSAGE = "You've reached the limit for {what}. Please try again {when}."
+
+    def enforce_limits(user: User, kinds: tuple[str, ...], per_day: int, what: str) -> None:
+        if settings.ai_calls_per_minute and accounts.count_ai_calls(
+                user.id, CARD_KINDS + QUERY_KINDS, 60) >= settings.ai_calls_per_minute:
+            raise HTTPException(429, "You're going too fast. Please wait a minute and try again.")
+        if per_day and accounts.count_ai_calls(user.id, kinds, 24 * 3600) >= per_day:
+            raise HTTPException(429, LIMIT_MESSAGE.format(what=what, when="tomorrow"))
+
     # ---- auth --------------------------------------------------------------
     @app.post("/api/login")
     def login(body: LoginRequest, request: Request, response: Response):
@@ -126,9 +147,18 @@ def create_app(settings: Settings | None = None, ai: AIService | None = None) ->
     # ---- card reading ------------------------------------------------------
     def run_extraction(job_id: str, user: User, images: list[bytes]) -> None:
         try:
+            # Cheap check first: only real business cards reach the extraction model.
+            check = app.state.ai.check_card(images)
+            record_usage(user, "card_check", check.usage)
+            if not check.value.is_business_card:
+                app.state.jobs.fail(job_id, NOT_A_CARD_MESSAGE)
+                return
             result = app.state.ai.extract_card(images)
             record_usage(user, "extract", result.usage)
-            app.state.jobs.finish(job_id, result.value.model_dump())
+            if not result.value.is_business_card:
+                app.state.jobs.fail(job_id, NOT_A_CARD_MESSAGE)
+                return
+            app.state.jobs.finish(job_id, clean_extraction(result.value))
         except AIError as e:
             app.state.jobs.fail(job_id, str(e))
         except Exception:  # pragma: no cover - unexpected
@@ -143,6 +173,9 @@ def create_app(settings: Settings | None = None, ai: AIService | None = None) ->
         user: User = Depends(current_user),
         store: UserStore = Depends(user_store),
     ):
+        enforce_limits(user, CARD_KINDS, settings.cards_per_day, "card scans today")
+        if settings.max_pending_jobs and app.state.jobs.pending_count(user.id) >= settings.max_pending_jobs:
+            raise HTTPException(429, "Please wait for your other cards to finish reading.")
         max_bytes = settings.max_upload_mb * 1024 * 1024
         images: list[bytes] = []
         ids: list[str] = []
@@ -222,17 +255,25 @@ def create_app(settings: Settings | None = None, ai: AIService | None = None) ->
     # ---- natural-language query -------------------------------------------
     @app.post("/api/query")
     def query(body: QueryRequest, user: User = Depends(current_user), store: UserStore = Depends(user_store)):
+        enforce_limits(user, QUERY_KINDS, settings.queries_per_day, "questions today")
+        problem = check_question(body.question)
+        if problem:  # rejected locally; the AI is never called
+            accounts.record_blocked(user.id, "query_blocked")
+            raise HTTPException(400, problem)
+        question = normalise_question(body.question)
         try:
-            result = app.state.ai.parse_query(body.question, store.distinct_industries(), store.distinct_tags())
+            result = app.state.ai.parse_query(question, store.distinct_industries(), store.distinct_tags())
         except AIError as e:
             raise HTTPException(502, str(e))
         record_usage(user, "query", result.usage)
-        spec = result.value
+        if not result.value.is_contact_search:
+            raise HTTPException(400, OFF_TOPIC_MESSAGE)
+        spec = clip_spec(result.value)
         contacts = store.search(spec)
+        # Only the contacts and a server-built summary go back: no free-form model text.
         return {
-            "explanation": spec.explanation,
+            "explanation": describe_spec(spec),
             "fields": store.return_fields(spec),
-            "spec": spec.model_dump(),
             "contacts": [c.model_dump() for c in contacts],
         }
 
