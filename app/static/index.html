@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Recall</title>
+  <meta name="theme-color" content="#1f6f5c">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <!-- Login -->
+  <section id="login-view" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <img src="/static/icons/icon-192.png" alt="" class="login-logo">
+      <h1>Recall</h1>
+      <p class="muted">Your business cards, searchable.</p>
+      <label>Username <input name="username" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="error" hidden></p>
+      <button type="submit" class="primary">Sign in</button>
+    </form>
+  </section>
+
+  <!-- App -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <span class="brand">Recall</span>
+      <button id="account-btn" class="ghost" type="button"></button>
+    </header>
+
+    <main>
+      <section id="view-scan" class="view">
+        <h2>Scan a card</h2>
+        <div class="photos">
+          <label class="photo-pick" id="front-pick">
+            <input type="file" accept="image/*" id="front-input">
+            <img alt="" hidden>
+            <span class="photo-label">Front photo</span>
+          </label>
+          <label class="photo-pick" id="back-pick">
+            <input type="file" accept="image/*" id="back-input">
+            <img alt="" hidden>
+            <span class="photo-label">Back (optional)</span>
+          </label>
+        </div>
+        <div class="row">
+          <button id="read-btn" class="primary" type="button" disabled>Read card</button>
+          <span id="scan-status" class="status"></span>
+        </div>
+        <p class="hint">While the card is being read, fill in the industry and description below.</p>
+        <div id="scan-form"></div>
+      </section>
+
+      <section id="view-ask" class="view" hidden>
+        <h2>Ask</h2>
+        <form id="ask-form" class="ask">
+          <input id="ask-input" placeholder="e.g. emails of CEOs based in Guangzhou" maxlength="500" autocomplete="off">
+          <button class="primary" type="submit">Ask</button>
+        </form>
+        <div class="chips" id="ask-examples"></div>
+        <div id="ask-result"></div>
+      </section>
+
+      <section id="view-contacts" class="view" hidden>
+        <h2>My contacts <span id="contact-count" class="muted"></span></h2>
+        <div class="row">
+          <input id="contacts-search" placeholder="Filter by any text…" autocomplete="off">
+        </div>
+        <div class="row export-row">
+          <button type="button" class="ghost" data-export="csv">Export CSV</button>
+          <button type="button" class="ghost" data-export="xlsx">Export Excel</button>
+        </div>
+        <ul id="contacts-list" class="contact-list"></ul>
+      </section>
+
+      <section id="view-admin" class="view" hidden>
+        <h2>Users</h2>
+        <p class="muted">Admins manage accounts only. Each user's cards are private and cannot be viewed here.</p>
+        <form id="new-user-form" class="card-form compact">
+          <label>Username <input name="username" required minlength="3" pattern="[A-Za-z0-9._@\-]+"></label>
+          <label>Temporary password <input name="password" type="text" required minlength="8"></label>
+          <label class="check"><input name="is_admin" type="checkbox"> Admin</label>
+          <button class="primary" type="submit">Add user</button>
+        </form>
+        <p id="admin-total" class="muted"></p>
+        <div class="table-wrap"><table id="users-table"></table></div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button type="button" data-view="scan" class="active">Scan</button>
+      <button type="button" data-view="ask">Ask</button>
+      <button type="button" data-view="contacts">Contacts</button>
+      <button type="button" data-view="admin" id="admin-tab" hidden>Users</button>
+    </nav>
+  </div>
+
+  <dialog id="modal"><div id="modal-body"></div></dialog>
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>
